@@ -47,7 +47,6 @@ class MainActivity : ComponentActivity() {
                         onOpenSettings = { screen = Screen.SETTINGS }
                     )
                     Screen.SETTINGS -> SettingsScreen(
-                        settings = boostSettings,
                         onBack = { screen = Screen.HOME }
                     )
                 }
