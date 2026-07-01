@@ -5,11 +5,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PageSize
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -20,6 +21,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontStyle
@@ -29,6 +31,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.util.lerp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.zen.crimsonboost.BoostManager
@@ -36,6 +39,7 @@ import com.zen.crimsonboost.BoostSettings
 import com.zen.crimsonboost.BoostTarget
 import com.zen.crimsonboost.ui.theme.*
 import kotlinx.coroutines.delay
+import kotlin.math.absoluteValue
 
 @Composable
 fun HomeScreen(settings: BoostSettings, onOpenSettings: () -> Unit) {
@@ -86,11 +90,9 @@ fun HomeScreen(settings: BoostSettings, onOpenSettings: () -> Unit) {
                     letterSpacing = 1.5.sp,
                     modifier = Modifier.weight(1f)
                 )
-                // Add button
                 IconButton(onClick = { showPicker = true }) {
                     Icon(Icons.Filled.Add, "Add", tint = TextPrimary)
                 }
-                // Settings
                 IconButton(onClick = onOpenSettings) {
                     Icon(Icons.Filled.Settings, "Settings", tint = TextSecondary)
                 }
@@ -143,28 +145,65 @@ fun HomeScreen(settings: BoostSettings, onOpenSettings: () -> Unit) {
                     }
                 }
             } else {
-                // Large horizontal card scroll — ZTE-style
-                LazyRow(
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
-                    contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    items(targets, key = { it.packageName }) { target ->
-                        AppCard(
-                            target = target,
-                            isBoosting = boostingPackage == target.packageName,
-                            installed = BoostManager.isPackageInstalled(context, target.packageName),
-                            onBoost = { boostingPackage = target.packageName },
-                            onRemove = {
-                                targets = targets.filterNot { it.packageName == target.packageName }
-                                BoostManager.saveTargets(context, targets)
+                // ── Centered snap carousel ─────────────────────────────────
+                val pagerState = rememberPagerState(pageCount = { targets.size })
+
+                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    HorizontalPager(
+                        state = pagerState,
+                        pageSize = PageSize.Fixed(290.dp),
+                        pageSpacing = 20.dp,
+                        contentPadding = PaddingValues(horizontal = 80.dp),
+                        modifier = Modifier.fillMaxSize(),
+                        beyondViewportPageCount = 1
+                    ) { page ->
+                        // Scale based on distance from center: active = 1.0, adjacent = 0.84
+                        val rawOffset =
+                            (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
+                        val cardScale = lerp(0.84f, 1.00f, (1f - rawOffset.absoluteValue).coerceIn(0f, 1f))
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .scale(cardScale),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            AppCard(
+                                target = targets[page],
+                                isBoosting = boostingPackage == targets[page].packageName,
+                                installed = BoostManager.isPackageInstalled(context, targets[page].packageName),
+                                onBoost = { boostingPackage = targets[page].packageName },
+                                onRemove = {
+                                    targets = targets.filterNot { it.packageName == targets[page].packageName }
+                                    BoostManager.saveTargets(context, targets)
+                                }
+                            )
+                        }
+                    }
+
+                    // Dot indicators at bottom center
+                    if (targets.size > 1) {
+                        Row(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(bottom = 10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            repeat(targets.size) { i ->
+                                val sel = pagerState.currentPage == i
+                                Box(
+                                    modifier = Modifier
+                                        .clip(CircleShape)
+                                        .background(if (sel) Crimson else TextSecondary.copy(0.3f))
+                                        .size(if (sel) 18.dp else 6.dp, 6.dp)
+                                )
                             }
-                        )
+                        }
                     }
                 }
             }
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(10.dp))
         }
     }
 
@@ -180,7 +219,7 @@ fun HomeScreen(settings: BoostSettings, onOpenSettings: () -> Unit) {
     }
 }
 
-// ── Large vertical card (ZTE-inspired) ───────────────────────────────────────
+// ── Large vertical card ───────────────────────────────────────────────────────
 
 @Composable
 private fun AppCard(
@@ -192,28 +231,25 @@ private fun AppCard(
 ) {
     val infinite = rememberInfiniteTransition(label = "pulse")
     val glowAlpha by infinite.animateFloat(
-        0.25f, 0.85f,
+        0.25f, 0.9f,
         infiniteRepeatable(tween(750), RepeatMode.Reverse),
         label = "g"
     )
-    val borderAlpha = if (isBoosting) glowAlpha else 0.2f
+    val borderAlpha = if (isBoosting) glowAlpha else 0.22f
 
     Box(
         modifier = Modifier
-            .fillMaxHeight(0.80f)
-            .width(260.dp)
-            .clip(RoundedCornerShape(22.dp))
-            .border(1.5.dp, Crimson.copy(alpha = borderAlpha), RoundedCornerShape(22.dp))
-            .background(
-                Brush.verticalGradient(listOf(CardDark, BackgroundBlack))
-            )
+            .fillMaxHeight(0.82f)
+            .width(290.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .border(1.5.dp, Crimson.copy(alpha = borderAlpha), RoundedCornerShape(24.dp))
+            .background(Brush.verticalGradient(listOf(CardDark, BackgroundBlack)))
     ) {
-        // Remove button — top right
         IconButton(
             onClick = onRemove,
             modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(32.dp)
         ) {
-            Icon(Icons.Filled.Close, null, tint = TextSecondary.copy(0.5f), modifier = Modifier.size(15.dp))
+            Icon(Icons.Filled.Close, null, tint = TextSecondary.copy(0.5f), modifier = Modifier.size(14.dp))
         }
 
         Column(
@@ -221,13 +257,8 @@ private fun AppCard(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(Modifier.weight(1f))
-
-            // Large app icon
             AppIcon(packageName = target.packageName, size = 100.dp)
-
             Spacer(Modifier.height(16.dp))
-
-            // App name
             Text(
                 target.label,
                 color = TextPrimary,
@@ -237,10 +268,7 @@ private fun AppCard(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
-
             Spacer(Modifier.height(4.dp))
-
-            // Status
             Text(
                 when {
                     !installed -> "Not installed"
@@ -254,10 +282,8 @@ private fun AppCard(
                 },
                 fontSize = 12.sp
             )
-
             Spacer(Modifier.weight(1f))
 
-            // BOOST button
             if (isBoosting) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(32.dp),
@@ -280,13 +306,12 @@ private fun AppCard(
                     Text("BOOST", fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.5.sp)
                 }
             }
-
             Spacer(Modifier.height(4.dp))
         }
     }
 }
 
-// ── Full-screen grid app picker (ZTE-style) ───────────────────────────────────
+// ── Full-screen grid picker ───────────────────────────────────────────────────
 
 @Composable
 private fun AppPickerGrid(
@@ -309,14 +334,9 @@ private fun AppPickerGrid(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnBackPress = true)
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(BackgroundBlack.copy(alpha = 0.97f))
-        ) {
+        Box(modifier = Modifier.fillMaxSize().background(BackgroundBlack.copy(alpha = 0.97f))) {
             Column(modifier = Modifier.fillMaxSize()) {
 
-                // Header
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -324,19 +344,11 @@ private fun AppPickerGrid(
                         .padding(horizontal = 20.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        "Add Apps",
-                        color = TextPrimary,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.weight(1f)
-                    )
+                    Text("Add Apps", color = TextPrimary, fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                     if (selected.isNotEmpty()) {
                         Button(
                             onClick = {
-                                onAdd(selected.mapNotNull { pkg ->
-                                    allApps.find { it.packageName == pkg }
-                                })
+                                onAdd(selected.mapNotNull { pkg -> allApps.find { it.packageName == pkg } })
                                 onDismiss()
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Crimson),
@@ -353,7 +365,6 @@ private fun AppPickerGrid(
                     }
                 }
 
-                // Search bar
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
@@ -362,18 +373,13 @@ private fun AppPickerGrid(
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary,
-                        focusedBorderColor = Crimson,
-                        unfocusedBorderColor = TextSecondary.copy(0.3f),
+                        focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = Crimson, unfocusedBorderColor = TextSecondary.copy(0.3f),
                         cursorColor = Crimson
                     ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
                 )
 
-                // Grid
                 LazyVerticalGrid(
                     columns = GridCells.Adaptive(minSize = 88.dp),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
@@ -383,18 +389,13 @@ private fun AppPickerGrid(
                 ) {
                     items(filtered, key = { it.packageName }) { app ->
                         val added = app.packageName in alreadyAdded
-                        val isSelected = app.packageName in selected
-                        GridAppItem(
-                            target = app,
-                            added = added,
-                            selected = isSelected,
-                            onToggle = {
-                                if (!added) {
-                                    if (isSelected) selected.remove(app.packageName)
-                                    else selected.add(app.packageName)
-                                }
+                        val isSel = app.packageName in selected
+                        GridAppItem(target = app, added = added, selected = isSel) {
+                            if (!added) {
+                                if (isSel) selected.remove(app.packageName)
+                                else selected.add(app.packageName)
                             }
-                        )
+                        }
                     }
                 }
             }
@@ -403,52 +404,28 @@ private fun AppPickerGrid(
 }
 
 @Composable
-private fun GridAppItem(
-    target: BoostTarget,
-    added: Boolean,
-    selected: Boolean,
-    onToggle: () -> Unit
-) {
-    val bgColor = when {
-        selected -> CrimsonDim
-        added -> SurfaceDark.copy(alpha = 0.4f)
-        else -> SurfaceDark
-    }
-    val borderColor = when {
-        selected -> Crimson
-        else -> TextSecondary.copy(0.08f)
-    }
-
+private fun GridAppItem(target: BoostTarget, added: Boolean, selected: Boolean, onToggle: () -> Unit) {
     Box(
         modifier = Modifier
             .aspectRatio(0.8f)
             .clip(RoundedCornerShape(14.dp))
-            .border(1.dp, borderColor, RoundedCornerShape(14.dp))
-            .background(bgColor)
+            .border(1.dp, if (selected) Crimson else TextSecondary.copy(0.08f), RoundedCornerShape(14.dp))
+            .background(if (selected) CrimsonDim else SurfaceDark)
             .clickable(enabled = !added) { onToggle() },
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(6.dp)
-        ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(6.dp)) {
             Box {
                 AppIcon(packageName = target.packageName, size = 52.dp)
                 if (selected || added) {
                     Box(
                         modifier = Modifier
-                            .size(18.dp)
-                            .clip(CircleShape)
+                            .size(18.dp).clip(CircleShape)
                             .background(if (added) TextSecondary else Crimson)
                             .align(Alignment.TopEnd),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            Icons.Filled.Check,
-                            null,
-                            tint = TextPrimary,
-                            modifier = Modifier.size(12.dp)
-                        )
+                        Icon(Icons.Filled.Check, null, tint = TextPrimary, modifier = Modifier.size(12.dp))
                     }
                 }
             }
@@ -456,11 +433,8 @@ private fun GridAppItem(
             Text(
                 target.label,
                 color = if (added) TextSecondary else TextPrimary,
-                fontSize = 10.sp,
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                lineHeight = 13.sp
+                fontSize = 10.sp, textAlign = TextAlign.Center,
+                maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 13.sp
             )
         }
     }
