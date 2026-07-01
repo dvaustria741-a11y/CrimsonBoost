@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,6 +37,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.zen.crimsonboost.ui.OnboardingScreen
+import com.zen.crimsonboost.ui.SettingsScreen
 import com.zen.crimsonboost.ui.theme.*
 import kotlinx.coroutines.delay
 
@@ -44,14 +47,34 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             CrimsonBoostTheme {
-                CrimsonBoostApp()
+                CrimsonBoostRoot()
             }
         }
     }
 }
 
+private enum class Screen { ONBOARDING, HOME, SETTINGS }
+
 @Composable
-fun CrimsonBoostApp() {
+private fun CrimsonBoostRoot() {
+    val context = LocalContext.current
+    val settings = remember { BoostSettings(context) }
+    var screen by remember {
+        mutableStateOf(if (settings.onboardingDone) Screen.HOME else Screen.ONBOARDING)
+    }
+
+    when (screen) {
+        Screen.ONBOARDING -> OnboardingScreen(onFinish = {
+            settings.onboardingDone = true
+            screen = Screen.HOME
+        })
+        Screen.HOME -> CrimsonBoostApp(onOpenSettings = { screen = Screen.SETTINGS })
+        Screen.SETTINGS -> SettingsScreen(onBack = { screen = Screen.HOME })
+    }
+}
+
+@Composable
+fun CrimsonBoostApp(onOpenSettings: () -> Unit = {}) {
     val context = LocalContext.current
     var targets by remember { mutableStateOf(BoostManager.loadSavedTargets(context)) }
     var showPicker by remember { mutableStateOf(false) }
@@ -87,9 +110,11 @@ fun CrimsonBoostApp() {
                 .padding(horizontal = 20.dp)
         ) {
             Spacer(Modifier.height(28.dp))
-            Header(dndGranted = dndGranted, onGrantDnd = {
-                BoostManager.openDndAccessSettings(context)
-            })
+            Header(
+                dndGranted = dndGranted,
+                onGrantDnd = { BoostManager.openDndAccessSettings(context) },
+                onOpenSettings = onOpenSettings
+            )
             Spacer(Modifier.height(24.dp))
 
             if (targets.isEmpty()) {
@@ -143,7 +168,7 @@ fun CrimsonBoostApp() {
 }
 
 @Composable
-private fun Header(dndGranted: Boolean, onGrantDnd: () -> Unit) {
+private fun Header(dndGranted: Boolean, onGrantDnd: () -> Unit, onOpenSettings: () -> Unit = {}) {
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
@@ -156,9 +181,12 @@ private fun Header(dndGranted: Boolean, onGrantDnd: () -> Unit) {
                 Icon(Icons.Filled.Bolt, contentDescription = null, tint = TextPrimary)
             }
             Spacer(Modifier.width(12.dp))
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text("CrimsonBoost", color = TextPrimary, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                 Text("Game performance booster", color = TextSecondary, fontSize = 12.sp)
+            }
+            IconButton(onClick = onOpenSettings) {
+                Icon(Icons.Filled.Settings, contentDescription = "Settings", tint = TextSecondary)
             }
         }
         if (!dndGranted) {
