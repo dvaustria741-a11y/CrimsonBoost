@@ -36,8 +36,8 @@ object ShizukuHelper {
     fun runShellCommand(command: String): Boolean {
         if (!hasPermission()) return false
         return try {
-            val p = Shizuku.newProcess(arrayOf("sh", "-c", command), null, null)
-            p.waitFor(); p.exitValue() == 0
+            val p = Runtime.getRuntime().exec(arrayOf("sh", "-c", command))
+            p.waitFor() == 0
         } catch (e: Throwable) { false }
     }
 }

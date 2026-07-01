@@ -117,7 +117,7 @@ fun CrimsonBoostApp(settings: BoostSettings, onOpenSettings: () -> Unit = {}) {
                     }
                 }
             } else {
-                LazyColumn(modifier = Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 16.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                LazyColumn(modifier = Modifier.weight(1f), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 0.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     items(targets, key = { it.packageName }) { target ->
                         BoostCard(target = target, isBoosting = boostingPackage == target.packageName,
                             installed = BoostManager.isPackageInstalled(context, target.packageName),

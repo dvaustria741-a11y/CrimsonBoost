@@ -47,7 +47,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                 Text("SETTINGS", color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, fontStyle = FontStyle.Italic, letterSpacing = 2.sp)
             }
             HorizontalDivider(color = Crimson.copy(alpha = 0.2f), thickness = 1.dp, modifier = Modifier.padding(top = 8.dp))
-            LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp, bottom = 60.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 60.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 if (shizukuInstalled && !shizukuGranted) {
                     item {
                         Spacer(Modifier.height(8.dp))
