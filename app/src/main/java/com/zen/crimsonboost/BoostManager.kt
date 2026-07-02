@@ -107,6 +107,11 @@ object BoostManager {
         return nm.isNotificationPolicyAccessGranted
     }
 
+    fun isDndCurrentlyActive(context: Context): Boolean {
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        return nm.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL
+    }
+
     fun openDndAccessSettings(context: Context) {
         val intent = Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

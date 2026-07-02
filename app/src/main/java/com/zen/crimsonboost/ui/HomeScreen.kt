@@ -39,6 +39,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.zen.crimsonboost.BoostManager
 import com.zen.crimsonboost.BoostSettings
 import com.zen.crimsonboost.BoostTarget
@@ -50,6 +52,20 @@ import kotlin.math.absoluteValue
 @Composable
 fun HomeScreen(settings: BoostSettings, onOpenSettings: () -> Unit) {
     val context = LocalContext.current
+
+    // ── DND state: re-checks every time the user returns from Settings ────
+    var dndGranted by remember { mutableStateOf(BoostManager.isDndAccessGranted(context)) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                dndGranted = BoostManager.isDndAccessGranted(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
     var targets by remember { mutableStateOf(BoostManager.loadSavedTargets(context)) }
     var showPicker by remember { mutableStateOf(false) }
     var boostingPackage by remember { mutableStateOf<String?>(null) }
@@ -81,23 +97,16 @@ fun HomeScreen(settings: BoostSettings, onOpenSettings: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(RoundedCornerShape(9.dp))
-                        .background(Crimson),
+                    modifier = Modifier.size(32.dp).clip(RoundedCornerShape(9.dp)).background(Crimson),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(Icons.Filled.Bolt, null, tint = TextPrimary, modifier = Modifier.size(18.dp))
                 }
                 Spacer(Modifier.width(10.dp))
                 Text(
-                    "CRIMSONBOOST",
-                    color = TextPrimary,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    fontStyle = FontStyle.Italic,
-                    letterSpacing = 1.5.sp,
-                    modifier = Modifier.weight(1f)
+                    "CRIMSONBOOST", color = TextPrimary, fontSize = 16.sp,
+                    fontWeight = FontWeight.ExtraBold, fontStyle = FontStyle.Italic,
+                    letterSpacing = 1.5.sp, modifier = Modifier.weight(1f)
                 )
                 IconButton(onClick = { showPicker = true }) {
                     Icon(Icons.Filled.Add, "Add", tint = TextPrimary)
@@ -107,7 +116,7 @@ fun HomeScreen(settings: BoostSettings, onOpenSettings: () -> Unit) {
                 }
             }
 
-            // DND banner
+            // ── DND banner — hidden once permission is granted ─────────────
             if (!dndGranted) {
                 Row(
                     modifier = Modifier
@@ -129,7 +138,7 @@ fun HomeScreen(settings: BoostSettings, onOpenSettings: () -> Unit) {
                 Spacer(Modifier.height(8.dp))
             }
 
-            // ── Main content ──────────────────────────────────────────────
+            // ── App cards / empty state ────────────────────────────────────
             if (targets.isEmpty()) {
                 Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -336,7 +345,6 @@ private fun AppCard(
                 modifier = Modifier.size(14.dp)
             )
         }
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -360,35 +368,18 @@ private fun AppCard(
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                when {
-                    !installed -> "Not installed"
-                    isBoosting -> "Boosting…"
-                    else -> "Ready to boost"
-                },
-                color = when {
-                    !installed -> TextSecondary.copy(0.5f)
-                    isBoosting -> CrimsonBright
-                    else -> Success
-                },
+                when { !installed -> "Not installed"; isBoosting -> "Boosting…"; else -> "Ready to boost" },
+                color = when { !installed -> TextSecondary.copy(0.5f); isBoosting -> CrimsonBright; else -> Success },
                 fontSize = 12.sp
             )
 
             Spacer(Modifier.weight(1f))
-
             if (isBoosting) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(32.dp),
-                    strokeWidth = 2.5.dp,
-                    color = CrimsonBright
-                )
+                CircularProgressIndicator(modifier = Modifier.size(32.dp), strokeWidth = 2.5.dp, color = CrimsonBright)
             } else {
                 Button(
-                    onClick = onBoost,
-                    enabled = installed,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Crimson,
-                        disabledContainerColor = CrimsonDim
-                    ),
+                    onClick = onBoost, enabled = installed,
+                    colors = ButtonDefaults.buttonColors(containerColor = Crimson, disabledContainerColor = CrimsonDim),
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -411,11 +402,7 @@ private fun AppCard(
 // ── Grid app picker ───────────────────────────────────────────────────────────
 
 @Composable
-private fun AppPickerGrid(
-    alreadyAdded: Set<String>,
-    onDismiss: () -> Unit,
-    onAdd: (List<BoostTarget>) -> Unit
-) {
+private fun AppPickerGrid(alreadyAdded: Set<String>, onDismiss: () -> Unit, onAdd: (List<BoostTarget>) -> Unit) {
     val context = LocalContext.current
     var query by remember { mutableStateOf("") }
     val allApps = remember { BoostManager.launchableApps(context) }
@@ -428,10 +415,7 @@ private fun AppPickerGrid(
     }
     val selected = remember { mutableStateListOf<String>() }
 
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnBackPress = true)
-    ) {
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnBackPress = true)) {
         Box(modifier = Modifier.fillMaxSize().background(BackgroundBlack.copy(alpha = 0.97f))) {
             Column(modifier = Modifier.fillMaxSize()) {
 
@@ -464,16 +448,13 @@ private fun AppPickerGrid(
                         }
                         Spacer(Modifier.width(8.dp))
                     }
-                    TextButton(onClick = onDismiss) {
-                        Text("CANCEL", color = TextSecondary, fontSize = 13.sp)
-                    }
+                    TextButton(onClick = onDismiss) { Text("CANCEL", color = TextSecondary, fontSize = 13.sp) }
                 }
 
                 OutlinedTextField(
                     value = query, onValueChange = { query = it },
                     placeholder = { Text("Search apps…", color = TextSecondary) },
-                    leadingIcon = { Icon(Icons.Filled.Search, null, tint = TextSecondary) },
-                    singleLine = true,
+                    leadingIcon = { Icon(Icons.Filled.Search, null, tint = TextSecondary) }, singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary,
@@ -485,22 +466,16 @@ private fun AppPickerGrid(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                 )
-
-                LazyVerticalGrid(
-                    columns = GridCells.Adaptive(minSize = 88.dp),
+                LazyVerticalGrid(columns = GridCells.Adaptive(minSize = 88.dp),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.weight(1f)
                 ) {
                     items(filtered, key = { it.packageName }) { app ->
                         val added = app.packageName in alreadyAdded
                         val isSel = app.packageName in selected
                         GridAppItem(target = app, added = added, selected = isSel) {
-                            if (!added) {
-                                if (isSel) selected.remove(app.packageName)
-                                else selected.add(app.packageName)
-                            }
+                            if (!added) { if (isSel) selected.remove(app.packageName) else selected.add(app.packageName) }
                         }
                     }
                 }

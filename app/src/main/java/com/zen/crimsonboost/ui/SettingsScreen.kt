@@ -16,10 +16,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import com.zen.crimsonboost.BoostManager
 import com.zen.crimsonboost.BoostSettings
 import com.zen.crimsonboost.ShizukuHelper
 import com.zen.crimsonboost.ui.theme.*
@@ -36,6 +40,21 @@ fun SettingsScreen(onBack: () -> Unit) {
     var boostOnLaunch by remember { mutableStateOf(settings.boostOnLaunch) }
     var shizukuGranted by remember { mutableStateOf(ShizukuHelper.hasPermission()) }
     val shizukuInstalled = remember { ShizukuHelper.isShizukuInstalled(context) }
+
+    // Re-check DND permission when user returns from system settings
+    var dndGranted by remember { mutableStateOf(BoostManager.isDndAccessGranted(context)) }
+    var dndActiveNow by remember { mutableStateOf(BoostManager.isDndCurrentlyActive(context)) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                dndGranted = BoostManager.isDndAccessGranted(context)
+                dndActiveNow = BoostManager.isDndCurrentlyActive(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     Box(modifier = Modifier.fillMaxSize().background(BackgroundBlack)) {
         ArenaBackground()
@@ -77,7 +96,26 @@ fun SettingsScreen(onBack: () -> Unit) {
                 item { SectionLabel("Enhancement") }
                 item { SettingToggleRow(Icons.Filled.BrightnessMedium, "Disable auto brightness", "Keep brightness steady during games instead of auto-adjusting.", autoBright) { autoBright = it; settings.disableAutoBrightness = it } }
                 item { SectionLabel("Game DND") }
-                item { SettingToggleRow(Icons.Filled.DoNotDisturbOn, "Enable Do Not Disturb", "Silence calls and alerts while a boosted app is in the foreground.", dnd) { dnd = it; settings.enableDnd = it } }
+                item {
+                    // Manual DND toggle — turn DND on/off right now
+                    SettingToggleRow(
+                        Icons.Filled.DoNotDisturbOn,
+                        "Do Not Disturb now",
+                        if (!dndGranted) "Tap to grant permission first →"
+                        else if (dndActiveNow) "DND is currently ON — tap to turn off"
+                        else "DND is currently OFF — tap to turn on",
+                        checked = dndActiveNow,
+                        onCheckedChange = {
+                            if (!dndGranted) {
+                                BoostManager.openDndAccessSettings(context)
+                            } else {
+                                dndActiveNow = it
+                                BoostManager.setDnd(context, it)
+                            }
+                        }
+                    )
+                }
+                item { SettingToggleRow(Icons.Filled.DoNotDisturbOn, "Enable Do Not Disturb on boost", "Automatically silence calls and alerts when BOOST is tapped.", dnd) { dnd = it; settings.enableDnd = it } }
                 item { SettingToggleRow(Icons.Filled.NotificationsOff, "Hide notifications", "Suppress heads-up notifications so nothing interrupts your session.", hideNotifs) { hideNotifs = it; settings.hideNotifications = it } }
                 item { SectionLabel("General") }
                 item { SettingToggleRow(Icons.Filled.Bolt, "Boost on launch", "Automatically run a boost pass as soon as CrimsonBoost opens.", boostOnLaunch) { boostOnLaunch = it; settings.boostOnLaunch = it } }
