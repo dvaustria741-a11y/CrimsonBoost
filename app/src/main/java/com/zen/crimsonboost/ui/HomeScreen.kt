@@ -24,7 +24,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -312,47 +311,31 @@ private fun AppCard(
             .fillMaxHeight(0.88f)
             .width(280.dp)
             .clip(RoundedCornerShape(24.dp))
+            .border(
+                1.5.dp,
+                Crimson.copy(alpha = if (isBoosting) glowAlpha else 0.3f),
+                RoundedCornerShape(24.dp)
+            )
             .background(Brush.verticalGradient(listOf(CardDark, BackgroundBlack)))
     ) {
-        // Remove button
-        IconButton(
-            onClick = onRemove,
-            modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(32.dp)
-        ) {
-            Icon(
-                Icons.Filled.Close, null,
-                tint = TextSecondary.copy(0.5f),
-                modifier = Modifier.size(14.dp)
-            )
+        IconButton(onClick = onRemove, modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(32.dp)) {
+            Icon(Icons.Filled.Close, null, tint = TextSecondary.copy(0.5f), modifier = Modifier.size(14.dp))
         }
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 20.dp, vertical = 16.dp),
+            modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(Modifier.weight(1f))
-
             AppIcon(packageName = target.packageName, size = 96.dp)
-
             Spacer(Modifier.height(14.dp))
-
-            Text(
-                target.label,
-                color = TextPrimary,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
+            Text(target.label, color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(4.dp))
             Text(
                 when { !installed -> "Not installed"; isBoosting -> "Boosting…"; else -> "Ready to boost" },
                 color = when { !installed -> TextSecondary.copy(0.5f); isBoosting -> CrimsonBright; else -> Success },
                 fontSize = 12.sp
             )
-
             Spacer(Modifier.weight(1f))
             if (isBoosting) {
                 CircularProgressIndicator(modifier = Modifier.size(32.dp), strokeWidth = 2.5.dp, color = CrimsonBright)
@@ -361,60 +344,17 @@ private fun AppCard(
                     onClick = onBoost, enabled = installed,
                     colors = ButtonDefaults.buttonColors(containerColor = Crimson, disabledContainerColor = CrimsonDim),
                     shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(46.dp)
+                    modifier = Modifier.fillMaxWidth().height(46.dp)
                 ) {
                     Icon(Icons.Filled.Bolt, null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text(
-                        "BOOST",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 1.5.sp
-                    )
+                    Text("BOOST", fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.5.sp)
                 }
             }
         }
-
-        // Canvas-drawn HUD corner brackets — no distortion, animates with glow
-        HudCornerBrackets(
-            modifier = Modifier.fillMaxSize(),
-            alpha = if (isBoosting) glowAlpha else 0.75f
-        )
     }
 }
 
-// ── HUD corner brackets drawn directly in Canvas ──────────────────────────────
-
-@Composable
-private fun HudCornerBrackets(modifier: Modifier = Modifier, alpha: Float = 0.75f) {
-    val crimson = Crimson
-    androidx.compose.foundation.Canvas(modifier = modifier) {
-        val stroke = 3.dp.toPx()
-        val len   = 28.dp.toPx()   // arm length
-        val pad   = stroke / 2f + 1f  // just enough so stroke isn't clipped by the card clip
-        val color = crimson.copy(alpha = alpha)
-        val w = size.width
-        val h = size.height
-
-        // Top-left
-        drawLine(color, Offset(pad, pad + len), Offset(pad, pad), stroke)
-        drawLine(color, Offset(pad, pad), Offset(pad + len, pad), stroke)
-
-        // Top-right
-        drawLine(color, Offset(w - pad - len, pad), Offset(w - pad, pad), stroke)
-        drawLine(color, Offset(w - pad, pad), Offset(w - pad, pad + len), stroke)
-
-        // Bottom-left
-        drawLine(color, Offset(pad, h - pad - len), Offset(pad, h - pad), stroke)
-        drawLine(color, Offset(pad, h - pad), Offset(pad + len, h - pad), stroke)
-
-        // Bottom-right
-        drawLine(color, Offset(w - pad, h - pad - len), Offset(w - pad, h - pad), stroke)
-        drawLine(color, Offset(w - pad - len, h - pad), Offset(w - pad, h - pad), stroke)
-    }
-}
 
 // ── Grid app picker ───────────────────────────────────────────────────────────
 
