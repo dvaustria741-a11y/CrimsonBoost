@@ -27,6 +27,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -69,7 +70,6 @@ fun HomeScreen(settings: BoostSettings, onOpenSettings: () -> Unit) {
     var showPicker by remember { mutableStateOf(false) }
     var boostingPackage by remember { mutableStateOf<String?>(null) }
     var showBoostOverlay by remember { mutableStateOf(false) }
-    val dndGranted = BoostManager.isDndAccessGranted(context)
 
     LaunchedEffect(boostingPackage) {
         val pkg = boostingPackage ?: return@LaunchedEffect
