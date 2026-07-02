@@ -311,11 +311,6 @@ private fun AppCard(
             .fillMaxHeight(0.88f)
             .width(280.dp)
             .clip(RoundedCornerShape(24.dp))
-            .border(
-                1.5.dp,
-                Crimson.copy(alpha = if (isBoosting) glowAlpha else 0.22f),
-                RoundedCornerShape(24.dp)
-            )
             .background(Brush.verticalGradient(listOf(CardDark, BackgroundBlack)))
     ) {
         // Remove button
@@ -381,14 +376,42 @@ private fun AppCard(
             }
         }
 
-        // HUD frame overlay — transparent crimson border decoration on top
-        androidx.compose.foundation.Image(
-            painter = painterResource(R.drawable.card_frame),
-            contentDescription = null,
+        // Canvas-drawn HUD corner brackets — no distortion, animates with glow
+        HudCornerBrackets(
             modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.FillBounds,
-            alpha = if (isBoosting) 0.9f else 0.6f
+            alpha = if (isBoosting) glowAlpha else 0.75f
         )
+    }
+}
+
+// ── HUD corner brackets drawn directly in Canvas ──────────────────────────────
+
+@Composable
+private fun HudCornerBrackets(modifier: Modifier = Modifier, alpha: Float = 0.75f) {
+    val crimson = Crimson
+    androidx.compose.foundation.Canvas(modifier = modifier) {
+        val stroke = 2.5.dp.toPx()
+        val len   = 22.dp.toPx()   // length of each bracket arm
+        val pad   = 12.dp.toPx()   // inset from card edge
+        val color = crimson.copy(alpha = alpha)
+        val w = size.width
+        val h = size.height
+
+        // Top-left
+        drawLine(color, Offset(pad, pad + len), Offset(pad, pad), stroke)
+        drawLine(color, Offset(pad, pad), Offset(pad + len, pad), stroke)
+
+        // Top-right
+        drawLine(color, Offset(w - pad - len, pad), Offset(w - pad, pad), stroke)
+        drawLine(color, Offset(w - pad, pad), Offset(w - pad, pad + len), stroke)
+
+        // Bottom-left
+        drawLine(color, Offset(pad, h - pad - len), Offset(pad, h - pad), stroke)
+        drawLine(color, Offset(pad, h - pad), Offset(pad + len, h - pad), stroke)
+
+        // Bottom-right
+        drawLine(color, Offset(w - pad, h - pad - len), Offset(w - pad, h - pad), stroke)
+        drawLine(color, Offset(w - pad - len, h - pad), Offset(w - pad, h - pad), stroke)
     }
 }
 
