@@ -33,7 +33,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
@@ -164,43 +163,30 @@ fun HomeScreen(settings: BoostSettings, onOpenSettings: () -> Unit) {
                 }
             } else {
                 // ── Carousel: each page = full width, card centered inside ──
-                BoxWithConstraints(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                    val cardWidth = 280.dp
-                    // cardHeight fills most of the available vertical space
-                    val cardHeight = maxHeight * 0.84f
-
+                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                     val pagerState = rememberPagerState(pageCount = { targets.size })
 
                     HorizontalPager(
                         state = pagerState,
                         modifier = Modifier.fillMaxSize()
-                        // No PageSize.Fixed → each page fills full viewport width
-                        // Box alignment below centers the card within that full-width page
                     ) { page ->
                         val rawOffset = ((pagerState.currentPage - page) +
                                 pagerState.currentPageOffsetFraction).absoluteValue
-                        // 1.0 when this is the center page, 0.82 when it's adjacent
                         val cardScale = lerp(
                             start = 0.82f,
                             stop = 1.00f,
                             fraction = (1f - rawOffset).coerceIn(0f, 1f)
                         )
 
-                        // Outer box: full-width page, centers its child
                         Box(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
                         ) {
-                            // Inner box: applies scale to just the card
                             Box(modifier = Modifier.scale(cardScale)) {
                                 AppCard(
                                     target = targets[page],
-                                    cardWidth = cardWidth,
-                                    cardHeight = cardHeight,
                                     isBoosting = boostingPackage == targets[page].packageName,
-                                    installed = BoostManager.isPackageInstalled(
-                                        context, targets[page].packageName
-                                    ),
+                                    installed = BoostManager.isPackageInstalled(context, targets[page].packageName),
                                     onBoost = { boostingPackage = targets[page].packageName },
                                     onRemove = {
                                         val removed = targets[page].packageName
@@ -308,8 +294,6 @@ private fun BoostOverlay() {
 @Composable
 private fun AppCard(
     target: BoostTarget,
-    cardWidth: Dp,
-    cardHeight: Dp,
     isBoosting: Boolean,
     installed: Boolean,
     onBoost: () -> Unit,
@@ -324,8 +308,8 @@ private fun AppCard(
 
     Box(
         modifier = Modifier
-            .height(cardHeight)
-            .width(cardWidth)
+            .fillMaxHeight(0.88f)
+            .width(280.dp)
             .clip(RoundedCornerShape(24.dp))
             .border(
                 1.5.dp,
@@ -396,6 +380,15 @@ private fun AppCard(
                 }
             }
         }
+
+        // HUD frame overlay — transparent crimson border decoration on top
+        androidx.compose.foundation.Image(
+            painter = painterResource(R.drawable.card_frame),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.FillBounds,
+            alpha = if (isBoosting) 0.9f else 0.6f
+        )
     }
 }
 
