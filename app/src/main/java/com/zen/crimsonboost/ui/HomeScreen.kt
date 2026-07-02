@@ -390,9 +390,9 @@ private fun AppCard(
 private fun HudCornerBrackets(modifier: Modifier = Modifier, alpha: Float = 0.75f) {
     val crimson = Crimson
     androidx.compose.foundation.Canvas(modifier = modifier) {
-        val stroke = 2.5.dp.toPx()
-        val len   = 22.dp.toPx()   // length of each bracket arm
-        val pad   = 12.dp.toPx()   // inset from card edge
+        val stroke = 3.dp.toPx()
+        val len   = 28.dp.toPx()   // arm length
+        val pad   = stroke / 2f + 1f  // just enough so stroke isn't clipped by the card clip
         val color = crimson.copy(alpha = alpha)
         val w = size.width
         val h = size.height
